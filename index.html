@@ -104,8 +104,8 @@ html:not(.vert) #stage{-webkit-mask-image:linear-gradient(to bottom,#000 calc(10
 @media (prefers-reduced-motion:reduce){ #hint i{animation:none} }
 .h{font-size:1.15em}
 .idt1{padding-inline-start:1em}.idt2{padding-inline-start:2em}.idt3{padding-inline-start:3em}
-.vert #col{left:auto;right:0;width:0;top:70px;height:calc(100vh - 170px);transform:none}
-.vert #measure{left:0;width:auto;top:70px;height:calc(100vh - 170px);transform:none;writing-mode:vertical-rl}
+.vert #col{left:auto;right:0;width:0;top:70px;height:calc(100dvh - 170px);transform:none}
+.vert #measure{left:0;width:auto;top:70px;height:calc(100dvh - 170px);transform:none;writing-mode:vertical-rl}
 .vert #measure p{height:100%}
 .vert .v{left:auto;top:0;bottom:0;writing-mode:vertical-rl;
   -webkit-mask-image:linear-gradient(180deg,#000 0,#000 calc(var(--p) - 16%),rgba(0,0,0,var(--ghost)) var(--p));
@@ -359,6 +359,9 @@ function wrapParagraph(html, cls){
 }
 function layout(){
   if(!paras.length) return;
+  // 縦書きの列の高さは、スマホのアドレスバーぶんを含まない実際の表示高さから決める
+  const colH = S.vert ? (innerHeight - 70 - 100) + 'px' : '';
+  col.style.height = measure.style.height = colH;
   const ratio = total ? sc()/(Math.max(1,total-PRE())*S.step) : 0;
   vlines=[];
   for(const raw of paras){
