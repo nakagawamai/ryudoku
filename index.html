@@ -178,7 +178,7 @@ em{font-style:normal} em.sesame{text-emphasis:filled sesame;-webkit-text-emphasi
       <button data-t="moss"><i style="background:#dfe6da"></i>若草</button>
     </div></div>
   <hr>
-  <div class="keys" style="font-size:11px;margin-bottom:6px">流読 v0.9.4</div>
+  <div class="keys" style="font-size:11px;margin-bottom:6px">流読 v0.9.5</div>
   <div class="keys"><kbd>↓</kbd><kbd>→</kbd> 次の行　<kbd>↑</kbd><kbd>←</kbd> 前の行<br><kbd>Space</kbd> 自動送り　<kbd>B</kbd> しおり　<kbd>H</kbd> バーを隠す</div>
 </div>
 
@@ -491,6 +491,7 @@ function renderShelf(){
       r.querySelector('.del').onclick = () => { e.bms = e.bms.filter(x=>x!==b); hist.set(h); renderShelf(); };
       bms.appendChild(r);
     }
+    box.appendChild(d);
   }
 }
 async function jumpTo(e, pos){
