@@ -2,7 +2,7 @@
 <html lang="ja" data-theme="dusk">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>流読 — 青空文庫 Flow Reader</title>
 <style>
 :root{
@@ -33,7 +33,7 @@ button:focus-visible,label.btn:focus-within,input:focus-visible,textarea:focus-v
 button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
 
-#panel{position:fixed;top:56px;right:12px;z-index:20;width:min(340px,calc(100vw - 24px));max-height:calc(100vh - 70px);overflow:auto;overscroll-behavior:contain;touch-action:pan-y;padding:14px 16px;background:var(--chrome);border:1px solid var(--line);border-radius:10px;font-family:var(--ui);font-size:13px;display:none}
+#panel{position:fixed;top:56px;right:12px;z-index:20;width:min(340px,calc(100vw - 24px));max-height:calc(100dvh - 70px);overflow:auto;overscroll-behavior:contain;touch-action:pan-y;padding:14px 16px;background:var(--chrome);border:1px solid var(--line);border-radius:10px;font-family:var(--ui);font-size:13px;display:none}
 #panel.open{display:block}
 #panel .row{display:flex;align-items:center;gap:10px;margin:8px 0}
 #panel .row span{flex:0 0 6em;color:var(--ink-hint)}
@@ -48,9 +48,9 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
 #panel .keys{color:var(--ink-hint);line-height:1.8}
 #panel kbd{font:inherit;border:1px solid var(--line);border-radius:4px;padding:0 5px}
 
-#shelf{position:fixed;inset:0;z-index:30;background:color-mix(in srgb,var(--bg) 80%,transparent);display:none;align-items:flex-start;justify-content:center;padding:20px}
+#shelf{position:fixed;inset:0;z-index:30;background:color-mix(in srgb,var(--bg) 80%,transparent);display:none;align-items:flex-start;justify-content:center;padding:16px 16px calc(16px + env(safe-area-inset-bottom))}
 #shelf.open{display:flex}
-#shelf .box{width:min(640px,100%);max-height:calc(100vh - 40px);display:flex;flex-direction:column;background:var(--chrome);border:1px solid var(--line);border-radius:12px;padding:16px;font-family:var(--ui);font-size:14px}
+#shelf .box{width:min(640px,100%);max-height:calc(100dvh - 32px - env(safe-area-inset-bottom));display:flex;flex-direction:column;background:var(--chrome);border:1px solid var(--line);border-radius:12px;padding:16px;font-family:var(--ui);font-size:14px}
 #shelf .head{display:flex;align-items:center;gap:8px;font-size:15px}
 #shelf .tabs{display:flex;gap:6px;margin-top:10px}
 #shelf .tabs button{padding:6px 12px;min-height:34px;font-size:13px;border-radius:17px}
@@ -81,14 +81,14 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
 .bk .bm .del{padding:4px 8px;min-height:30px;font-size:12px;color:var(--ink-hint)}
 .bk .bm .when{font-size:11px;color:var(--ink-hint);white-space:nowrap}
 #shelfList .note{padding:16px 4px;color:var(--ink-hint)}
-#toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%) translateY(10px);z-index:40;background:var(--ink);color:var(--bg);font-family:var(--ui);font-size:13px;padding:8px 14px;border-radius:20px;opacity:0;transition:.3s;pointer-events:none}
+#toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(10px);z-index:40;background:var(--ink);color:var(--bg);font-family:var(--ui);font-size:13px;padding:8px 14px;border-radius:20px;opacity:0;transition:.3s;pointer-events:none}
 #toast.on{opacity:1;transform:translateX(-50%)}
 
 .sw{display:flex;gap:10px;flex-wrap:wrap}
 .sw button{flex-direction:column;gap:3px;padding:6px 8px;min-width:56px;border-color:transparent;font-size:12px;color:var(--ink-hint)}
 .sw button i{display:block;width:26px;height:26px;border-radius:50%;border:1px solid rgba(128,128,128,.4)}
 .sw button.on{border-color:var(--ink);color:var(--ink)}
-#ctl{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:18;display:none;gap:10px;align-items:center;font-family:var(--ui);font-size:14px}
+#ctl{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:18;display:none;gap:10px;align-items:center;font-family:var(--ui);font-size:14px}
 #ctl.on{display:flex}
 #ctl button{background:var(--chrome);box-shadow:0 4px 18px rgba(0,0,0,.18);min-height:48px;padding:10px 16px;border-radius:24px}
 #ctl #play2,#ctl #bmBtn{width:48px;min-width:0;padding:0;justify-content:center;border-radius:50%}
@@ -111,7 +111,7 @@ html:not(.vert) #stage{-webkit-mask-image:linear-gradient(to bottom,#000 calc(10
   -webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(var(--p) - 16%),rgba(0,0,0,var(--ghost)) var(--p));
           mask-image:linear-gradient(90deg,#000 0,#000 calc(var(--p) - 16%),rgba(0,0,0,var(--ghost)) var(--p));
 }
-#hint{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);z-index:16;font-family:var(--ui);font-size:13px;color:var(--ink-hint);
+#hint{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:16;font-family:var(--ui);font-size:13px;color:var(--ink-hint);
   display:flex;flex-direction:column;align-items:center;gap:6px;opacity:0;transition:opacity .5s;pointer-events:none}
 #hint.on{opacity:1}
 #hint i{display:block;width:10px;height:10px;border-right:1.5px solid var(--ink-hint);border-bottom:1.5px solid var(--ink-hint);transform:rotate(45deg);animation:bob 1.6s ease-in-out infinite}
@@ -138,9 +138,9 @@ em{font-style:normal} em.sesame{text-emphasis:filled sesame;-webkit-text-emphasi
 .v.mt{font-size:1.3em}
 .v.ma{color:var(--ink)}
 .v.ms{font-size:.72em;color:var(--ink-hint)}
-#search{position:fixed;inset:0;z-index:30;background:color-mix(in srgb,var(--bg) 80%,transparent);display:none;align-items:flex-start;justify-content:center;padding:20px}
+#search{position:fixed;inset:0;z-index:30;background:color-mix(in srgb,var(--bg) 80%,transparent);display:none;align-items:flex-start;justify-content:center;padding:16px 16px calc(16px + env(safe-area-inset-bottom))}
 #search.open{display:flex}
-#search .box{width:min(640px,100%);max-height:calc(100vh - 40px);display:flex;flex-direction:column;background:var(--chrome);border:1px solid var(--line);border-radius:12px;padding:16px;font-family:var(--ui);font-size:14px}
+#search .box{width:min(640px,100%);max-height:calc(100dvh - 32px - env(safe-area-inset-bottom));display:flex;flex-direction:column;background:var(--chrome);border:1px solid var(--line);border-radius:12px;padding:16px;font-family:var(--ui);font-size:14px}
 #search .head{display:flex;gap:8px;align-items:center}
 #q{flex:1;font:inherit;font-size:16px;padding:10px 12px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;min-width:0}
 #search .rnd{display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;color:var(--ink-hint)}
@@ -155,7 +155,7 @@ em{font-style:normal} em.sesame{text-emphasis:filled sesame;-webkit-text-emphasi
 #empty{position:relative;z-index:5;font-family:var(--ui);font-size:14px;color:var(--ink-hint);line-height:1.9;padding:0 28px;max-width:38em;margin:22vh auto 0}
 #empty b{color:var(--ink);font-weight:500}
 @media (max-width:600px){ #bar .t{display:none} #bar{padding:8px 8px;gap:6px;font-size:13px} #bar button{padding:8px 9px;min-height:42px} #col,#measure{width:calc(100vw - 40px)}
-  #panel{top:auto;right:0;left:0;bottom:0;width:100%;max-height:75vh;border-radius:16px 16px 0 0;padding:14px 18px 28px;font-size:15px;box-shadow:0 -8px 30px rgba(0,0,0,.25)}
+  #panel{top:auto;right:0;left:0;bottom:0;width:100%;max-height:72dvh;border-radius:16px 16px 0 0;padding:14px 18px calc(24px + env(safe-area-inset-bottom));font-size:15px;box-shadow:0 -8px 30px rgba(0,0,0,.25)}
   #panel .row{margin:6px 0;gap:12px} #panel .row span{flex-basis:6.5em} #panel .row em{flex-basis:5em}
   #panel .sw button{min-height:40px} }
 </style>
@@ -197,7 +197,7 @@ em{font-style:normal} em.sesame{text-emphasis:filled sesame;-webkit-text-emphasi
       <button data-t="moss"><i style="background:#dfe6da"></i>若草</button>
     </div></div>
   <hr>
-  <div class="keys" style="font-size:11px;margin-bottom:6px">流読 v0.10.2</div>
+  <div class="keys" style="font-size:11px;margin-bottom:6px">流読 v0.10.4　<span id="saveDiag"></span></div>
   <div class="keys"><kbd>↓</kbd><kbd>→</kbd> 次の行　<kbd>↑</kbd><kbd>←</kbd> 前の行<br><kbd>Space</kbd> 自動送り　<kbd>B</kbd> しおり　<kbd>H</kbd> バーを隠す</div>
 </div>
 
@@ -272,9 +272,7 @@ function applySettings(relayout){
   document.querySelectorAll('#modes button').forEach(b => b.classList.toggle('on', b.dataset.m===S.mode));
   document.querySelectorAll('#revs button').forEach(b => b.classList.toggle('on', (b.dataset.r==='1')===S.rev));
   document.documentElement.classList.toggle('rev', revOn());
-  document.querySelectorAll('#modes button').forEach(b => b.onclick = () => { S.mode=b.dataset.m; applySettings(); });
-document.querySelectorAll('#revs button').forEach(b => b.onclick = () => { const r=b.dataset.r==='1'; if(r===S.rev) return; const pos=total?sc():0; S.rev=r; applySettings(); if(total){ goTo(pos); requestUpdate(); } });
-document.querySelectorAll('#dirs button').forEach(b => b.classList.toggle('on', (b.dataset.v==='1')===S.vert));
+  document.querySelectorAll('#dirs button').forEach(b => b.classList.toggle('on', (b.dataset.v==='1')===S.vert));
   $('#hint').firstChild.nodeValue = S.vert ? (S.rev ? '右へなぞると、次の行が現れます' : '左へなぞると、次の行が現れます') : '下にスクロールすると、次の行が現れます';
   document.querySelectorAll('#modes button').forEach(b => b.onclick = () => { S.mode=b.dataset.m; applySettings(); });
 document.querySelectorAll('#revs button').forEach(b => b.onclick = () => { const r=b.dataset.r==='1'; if(r===S.rev) return; const pos=total?sc():0; S.rev=r; applySettings(); if(total){ goTo(pos); requestUpdate(); } });
@@ -289,6 +287,7 @@ document.querySelectorAll('#themes button').forEach(b => b.classList.toggle('on'
   $('#ghost').value=S.ghost; $('#ghostV').textContent=Math.round(S.ghost*100)+'%';
   document.documentElement.style.setProperty('--ghost', S.ghost);
   store.set('settings', S);
+  const sv=$('#saveDiag'); if(sv) sv.textContent = (store.get('settings')?.fs===S.fs) ? '設定はこの端末に保存されています' : '設定を保存できません（この端末では次回リセットされます）';
   if(relayout){ clearTimeout(relayoutT); relayoutT=setTimeout(layout,120); }
   else { updateSpacer(); forceAll(); requestUpdate(); }
 }
@@ -406,7 +405,7 @@ function wrapParagraph(html, cls){
 function layout(){
   if(!paras.length) return;
   // 縦書きの列の高さは、スマホのアドレスバーぶんを含まない実際の表示高さから決める
-  const colH = S.vert ? (innerHeight - 70 - 100) + 'px' : '';
+  const colH = S.vert ? (innerHeight - 70 - 110) + 'px' : '';
   col.style.height = measure.style.height = colH;
   const ratio = total ? sc()/(Math.max(1,total-PRE())*S.step) : 0;
   vlines=[];
