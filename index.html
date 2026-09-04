@@ -42,7 +42,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
 #panel input[type=range]::-moz-range-track{height:6px;border-radius:3px;background:var(--line)}
 #panel input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;border-radius:50%;background:var(--ink);border:3px solid var(--chrome);margin-top:-11px;box-shadow:0 1px 4px rgba(0,0,0,.25)}
 #panel input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--ink);border:3px solid var(--chrome);box-shadow:0 1px 4px rgba(0,0,0,.25)}
-html.lock, html.lock body{overflow:hidden!important}
+
 #panel .row em{font-style:normal;flex:0 0 4.5em;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
 #panel hr{border:0;border-top:1px solid var(--line);margin:12px 0}
 #panel .keys{color:var(--ink-hint);line-height:1.8}
@@ -178,6 +178,7 @@ em{font-style:normal} em.sesame{text-emphasis:filled sesame;-webkit-text-emphasi
       <button data-t="moss"><i style="background:#dfe6da"></i>若草</button>
     </div></div>
   <hr>
+  <div class="keys" style="font-size:11px;margin-bottom:6px">流読 v0.9.3</div>
   <div class="keys"><kbd>↓</kbd><kbd>→</kbd> 次の行　<kbd>↑</kbd><kbd>←</kbd> 前の行<br><kbd>Space</kbd> 自動送り　<kbd>B</kbd> しおり　<kbd>H</kbd> バーを隠す</div>
 </div>
 
@@ -262,6 +263,10 @@ document.querySelectorAll('#modes button').forEach(b => b.onclick = () => { S.mo
 document.querySelectorAll('#dirs button').forEach(b => b.onclick = () => { const v=b.dataset.v==='1'; if(v===S.vert) return; const pos=total?sc()/S.step:0; S.vert=v; applySettings(); if(total){ window.scrollTo(0,0); layout(); goTo(pos*S.step); } });
 document.querySelectorAll('#themes button').forEach(b => b.onclick = () => { S.theme=b.dataset.t; applySettings(); });
 $('#gear').onclick = () => { const o=$('#panel').classList.toggle('open'); $('#gear').setAttribute('aria-expanded',o); $('#gear').classList.toggle('on',o); document.documentElement.classList.toggle('lock', o); };
+// 設定を開いている間は、パネルの外のタッチ・ホイールでページをスクロールさせない（overflow:hidden はiOSで先頭に戻るので使わない）
+const locked = () => document.documentElement.classList.contains('lock');
+addEventListener('touchmove', e => { if(locked() && !e.target.closest('#panel')) e.preventDefault(); }, {passive:false});
+addEventListener('keydown', e => { if(locked() && /^(Arrow|Space|Page)/.test(e.code) && e.target.tagName!=='INPUT') e.preventDefault(); });
 
 /* ================= parsing (paragraphs) ================= */
 const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -450,8 +455,11 @@ function addBookmark(){
   let snip=''; for(let i=pos;i<Math.min(total,pos+3)&&!snip;i++) snip=lineText(i);
   e.bms = (e.bms||[]).filter(b => b.pos!==pos);
   e.bms.push({ pos, snip: snip.slice(0,24), ts:Date.now() }); e.bms.sort((a,b)=>a.pos-b.pos);
-  hist.set(h); toast('しおりを挟みました');
+  hist.set(h);
+  if(store.get('history')?.some(x=>x.id===currentWork.id)) toast('しおりを挟みました'); else toast('この端末では保存できません（プライベートモード？）');
+  const b=$('#bmBtn'); b.classList.add('on'); setTimeout(()=>b.classList.remove('on'),900);
 }
+addEventListener('pagehide', () => { if(currentKey && total){ const pos=sc()/S.step+PRE(); store.set(currentKey,pos); if(currentWork) touchHistory(pos); } });
 let toastT=0; function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'),1600); }
 const fmtDate = ts => { const d=new Date(ts); return `${d.getMonth()+1}/${d.getDate()}`; };
 function renderShelf(){
@@ -513,7 +521,7 @@ $('#play2').onclick = () => togglePlay();
 $('#prev').onclick = () => { if(playing) togglePlay(false); stepLine(-1); };
 $('#next').onclick = () => { if(playing) togglePlay(false); stepLine(1); };
 togglePlay(false);
-addEventListener('wheel', e => { if(document.documentElement.classList.contains('lock')) return; if(playing) togglePlay(false); if(S.vert && total && Math.abs(e.deltaY)>Math.abs(e.deltaX)){ e.preventDefault(); window.scrollBy(e.deltaY, 0); } }, {passive:false});
+addEventListener('wheel', e => { if(locked()){ if(!e.target.closest('#panel')) e.preventDefault(); return; } if(playing) togglePlay(false); if(S.vert && total && Math.abs(e.deltaY)>Math.abs(e.deltaX)){ e.preventDefault(); window.scrollBy(e.deltaY, 0); } }, {passive:false});
 addEventListener('touchmove', () => { if(playing) togglePlay(false); }, {passive:true});
 addEventListener('keydown', e => {
   if(e.target.tagName==='TEXTAREA' || e.target.tagName==='INPUT') return;
@@ -578,6 +586,7 @@ async function openWork(w){
     let text; try{ text = new TextDecoder('utf-8',{fatal:true}).decode(buf); }catch(e){ text = new TextDecoder('shift_jis').decode(buf); }
     currentWork = { id:w.id, t:w.t, a:w.a, tr:w.tr };
     load(text, {title:w.t, subtitle:w.st, author:w.a, translator:w.tr, teihon:w.tb});
+    touchHistory(Math.floor(sc()/S.step + PRE()));
     history.replaceState(null,'','?id='+w.id);
   }catch(e){ $('#title').textContent='流読'; alert(e.message+'\n通信状況を確認して、もう一度お試しください。'); }
 }
