@@ -178,7 +178,7 @@ em{font-style:normal} em.sesame{text-emphasis:filled sesame;-webkit-text-emphasi
       <button data-t="moss"><i style="background:#dfe6da"></i>若草</button>
     </div></div>
   <hr>
-  <div class="keys" style="font-size:11px;margin-bottom:6px">流読 v0.9.3</div>
+  <div class="keys" style="font-size:11px;margin-bottom:6px">流読 v0.9.4</div>
   <div class="keys"><kbd>↓</kbd><kbd>→</kbd> 次の行　<kbd>↑</kbd><kbd>←</kbd> 前の行<br><kbd>Space</kbd> 自動送り　<kbd>B</kbd> しおり　<kbd>H</kbd> バーを隠す</div>
 </div>
 
@@ -217,6 +217,8 @@ em{font-style:normal} em.sesame{text-emphasis:filled sesame;-webkit-text-emphasi
 <script>
 (() => {
 const $ = s => document.querySelector(s);
+addEventListener('error', e => { try{ toast('エラー: '+e.message); }catch(_){} });
+addEventListener('unhandledrejection', e => { try{ toast('エラー: '+(e.reason?.message||e.reason)); }catch(_){} });
 const col = $('#col'), measure = $('#measure'), spacer = $('#spacer'), railBar = $('#rail i'), stage = $('#stage');
 
 /* ================= settings ================= */
@@ -441,10 +443,12 @@ let saveT=0; function saveSoon(pos){ clearTimeout(saveT); saveT=setTimeout(()=>{
 let currentWork = null;
 const hist = { get(){ return store.get('history') || []; }, set(v){ store.set('history', v); } };
 function touchHistory(pos){
+ try{
   const h = hist.get().filter(x => x.id!==currentWork.id);
   const old = hist.get().find(x => x.id===currentWork.id);
   h.unshift({ id:currentWork.id, t:currentWork.t, a:currentWork.a, tr:currentWork.tr||'', pos, total, ts:Date.now(), bms: old?.bms || [] });
   hist.set(h.slice(0,100));
+ }catch(e){ toast('本棚に保存できませんでした: '+e.message); }
 }
 function lineText(i){ const d=document.createElement('div'); d.innerHTML=(vlines[i]?.html||'').replace(/<rt>.*?<\/rt>/g,''); return d.textContent.trim(); }
 function addBookmark(){
@@ -462,8 +466,12 @@ function addBookmark(){
 addEventListener('pagehide', () => { if(currentKey && total){ const pos=sc()/S.step+PRE(); store.set(currentKey,pos); if(currentWork) touchHistory(pos); } });
 let toastT=0; function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'),1600); }
 const fmtDate = ts => { const d=new Date(ts); return `${d.getMonth()+1}/${d.getDate()}`; };
+function storageOK(){ try{ localStorage.setItem('ryudoku:test','1'); const ok = localStorage.getItem('ryudoku:test')==='1'; localStorage.removeItem('ryudoku:test'); return ok; }catch(e){ return false; } }
 function renderShelf(){
   const box = $('#shelfList'); const h = hist.get(); box.innerHTML='';
+  const diag = document.createElement('div'); diag.className='note'; diag.style.fontSize='11px';
+  diag.textContent = `保存: ${storageOK()?'この端末に保存できます':'保存できません（プライベートモード・アプリ内ブラウザの可能性）'}　／　登録 ${h.length} 冊　／　開いている本: ${currentWork?currentWork.id:'なし'}　／　${location.host}`;
+  setTimeout(()=>box.appendChild(diag));
   if(!h.length){ box.innerHTML='<div class="note">まだ本がありません。「作品をさがす」から読み始めると、ここに並びます。</div>'; return; }
   for(const e of h){
     const pct = e.total ? Math.min(100, Math.round(e.pos/e.total*100)) : 0;
