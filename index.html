@@ -129,6 +129,8 @@ html.type .v{-webkit-mask-image:linear-gradient(90deg,#000 var(--p),rgba(0,0,0,v
 html.type.vert .v{-webkit-mask-image:linear-gradient(180deg,#000 var(--p),rgba(0,0,0,var(--ghost)) var(--p));mask-image:linear-gradient(180deg,#000 var(--p),rgba(0,0,0,var(--ghost)) var(--p))}
 .vert #hint i{transform:rotate(135deg);animation-name:bobx}
 @keyframes bobx{0%,100%{transform:translateX(0) rotate(135deg)}50%{transform:translateX(-6px) rotate(135deg)}}
+.vert.rev #hint i{transform:rotate(-45deg);animation-name:bobxr}
+@keyframes bobxr{0%,100%{transform:translateX(0) rotate(-45deg)}50%{transform:translateX(6px) rotate(-45deg)}}
 .vert #rail{top:auto;left:0;right:0;height:3px;width:auto;display:flex;justify-content:flex-end}
 .vert #rail i{height:100%;width:0}
 ruby{ruby-align:center} rt{font-size:.5em;letter-spacing:0;color:var(--ink-hint)}
@@ -173,6 +175,8 @@ em{font-style:normal} em.sesame{text-emphasis:filled sesame;-webkit-text-emphasi
 <div id="panel">
   <div class="row"><span>文字の向き</span><div class="sw" id="dirs" style="gap:6px">
     <button data-v="0" style="flex-direction:row;min-width:0">横書き</button><button data-v="1" style="flex-direction:row;min-width:0">縦書き</button></div></div>
+  <div class="row"><span>横スクロール</span><div class="sw" id="revs" style="gap:6px">
+    <button data-r="1" style="flex-direction:row;min-width:0">左→右で進む</button><button data-r="0" style="flex-direction:row;min-width:0">右→左で進む</button></div></div>
   <div class="row"><span>出方</span><div class="sw" id="modes" style="gap:6px">
     <button data-m="fade" style="flex-direction:row;min-width:0">ふわっと</button><button data-m="type" style="flex-direction:row;min-width:0">タイプライター</button></div></div>
   <div class="row"><span>文字サイズ</span><input type="range" id="fs" min="14" max="34" step="1"><em id="fsV"></em></div>
@@ -193,7 +197,7 @@ em{font-style:normal} em.sesame{text-emphasis:filled sesame;-webkit-text-emphasi
       <button data-t="moss"><i style="background:#dfe6da"></i>若草</button>
     </div></div>
   <hr>
-  <div class="keys" style="font-size:11px;margin-bottom:6px">流読 v0.10.1</div>
+  <div class="keys" style="font-size:11px;margin-bottom:6px">流読 v0.10.2</div>
   <div class="keys"><kbd>↓</kbd><kbd>→</kbd> 次の行　<kbd>↑</kbd><kbd>←</kbd> 前の行<br><kbd>Space</kbd> 自動送り　<kbd>B</kbd> しおり　<kbd>H</kbd> バーを隠す</div>
 </div>
 
@@ -249,9 +253,12 @@ addEventListener('unhandledrejection', e => { try{ toast('エラー: '+(e.reason
 const col = $('#col'), measure = $('#measure'), spacer = $('#spacer'), railBar = $('#rail i'), stage = $('#stage');
 
 /* ================= settings ================= */
-const S = { fs:26, lh:2.1, focus:0.42, step:100, spd:0.5, pre:3, ghost:0.12, theme:'dusk', vert:false, mode:'fade' };
-const sc = () => S.vert ? scrollX : scrollY;
-const goTo = (v, smooth) => window.scrollTo(S.vert ? {left:v, top:0, behavior:smooth?'smooth':'auto'} : {top:v, left:0, behavior:smooth?'smooth':'auto'});
+const S = { fs:26, lh:2.1, focus:0.42, step:100, spd:0.5, pre:3, ghost:0.12, theme:'dusk', vert:false, mode:'fade', rev:true };
+// rev=true: 縦書きのとき、指を左→右に動かす（＝本をめくる向き）と文字が進む。内部的には scrollX を反転して扱う
+const scrollLen = () => Math.max(0, total - PRE()) * S.step;
+const revOn = () => S.vert && S.rev;
+const sc = () => S.vert ? (revOn() ? scrollLen() - scrollX : scrollX) : scrollY;
+const goTo = (v, smooth) => window.scrollTo(S.vert ? {left: revOn() ? scrollLen() - v : v, top:0, behavior:smooth?'smooth':'auto'} : {top:v, left:0, behavior:smooth?'smooth':'auto'});
 const store = { get(k){ try{ return JSON.parse(localStorage.getItem('ryudoku:'+k)); }catch(e){ return null; } },
                 set(k,v){ try{ localStorage.setItem('ryudoku:'+k, JSON.stringify(v)); }catch(e){} } };
 Object.assign(S, store.get('settings') || {}); delete S.dim;
@@ -263,10 +270,14 @@ function applySettings(relayout){
   document.documentElement.classList.toggle('vert', S.vert);
   document.documentElement.classList.toggle('type', S.mode==='type');
   document.querySelectorAll('#modes button').forEach(b => b.classList.toggle('on', b.dataset.m===S.mode));
+  document.querySelectorAll('#revs button').forEach(b => b.classList.toggle('on', (b.dataset.r==='1')===S.rev));
+  document.documentElement.classList.toggle('rev', revOn());
   document.querySelectorAll('#modes button').forEach(b => b.onclick = () => { S.mode=b.dataset.m; applySettings(); });
+document.querySelectorAll('#revs button').forEach(b => b.onclick = () => { const r=b.dataset.r==='1'; if(r===S.rev) return; const pos=total?sc():0; S.rev=r; applySettings(); if(total){ goTo(pos); requestUpdate(); } });
 document.querySelectorAll('#dirs button').forEach(b => b.classList.toggle('on', (b.dataset.v==='1')===S.vert));
-  $('#hint').firstChild.nodeValue = S.vert ? '左にスクロールすると、次の行が現れます' : '下にスクロールすると、次の行が現れます';
+  $('#hint').firstChild.nodeValue = S.vert ? (S.rev ? '右へなぞると、次の行が現れます' : '左へなぞると、次の行が現れます') : '下にスクロールすると、次の行が現れます';
   document.querySelectorAll('#modes button').forEach(b => b.onclick = () => { S.mode=b.dataset.m; applySettings(); });
+document.querySelectorAll('#revs button').forEach(b => b.onclick = () => { const r=b.dataset.r==='1'; if(r===S.rev) return; const pos=total?sc():0; S.rev=r; applySettings(); if(total){ goTo(pos); requestUpdate(); } });
 document.querySelectorAll('#dirs button').forEach(b => b.onclick = () => { const v=b.dataset.v==='1'; if(v===S.vert) return; const pos=total?sc()/S.step:0; S.vert=v; applySettings(); if(total){ window.scrollTo(0,0); layout(); goTo(pos*S.step); } });
 document.querySelectorAll('#themes button').forEach(b => b.classList.toggle('on', b.dataset.t===S.theme));
   $('#fs').value=S.fs; $('#fsV').textContent=S.fs+'px';
@@ -289,6 +300,7 @@ $('#spd').oninput = e => { S.spd=+e.target.value; applySettings(); };
 $('#pre').oninput = e => { S.pre=+e.target.value; applySettings(); };
 $('#ghost').oninput = e => { S.ghost=+e.target.value; applySettings(); };
 document.querySelectorAll('#modes button').forEach(b => b.onclick = () => { S.mode=b.dataset.m; applySettings(); });
+document.querySelectorAll('#revs button').forEach(b => b.onclick = () => { const r=b.dataset.r==='1'; if(r===S.rev) return; const pos=total?sc():0; S.rev=r; applySettings(); if(total){ goTo(pos); requestUpdate(); } });
 document.querySelectorAll('#dirs button').forEach(b => b.onclick = () => { const v=b.dataset.v==='1'; if(v===S.vert) return; const pos=total?sc()/S.step:0; S.vert=v; applySettings(); if(total){ window.scrollTo(0,0); layout(); goTo(pos*S.step); } });
 document.querySelectorAll('#themes button').forEach(b => b.onclick = () => { S.theme=b.dataset.t; applySettings(); });
 $('#gear').onclick = () => { const o=$('#panel').classList.toggle('open'); $('#gear').setAttribute('aria-expanded',o); $('#gear').classList.toggle('on',o); document.documentElement.classList.toggle('lock', o); };
@@ -571,7 +583,7 @@ let playing=false, last=0;
 function tick(t){
   if(!playing) return;
   const dt = last ? (t-last)/1000 : 0; last=t;
-  if(S.vert) window.scrollBy(S.spd*S.step*dt, 0); else window.scrollBy(0, S.spd*S.step*dt);
+  if(S.vert) window.scrollBy((revOn()?-1:1)*S.spd*S.step*dt, 0); else window.scrollBy(0, S.spd*S.step*dt);
   if(sc()/S.step + PRE() >= total-1) togglePlay(false);
   requestAnimationFrame(tick);
 }
@@ -588,7 +600,7 @@ $('#play2').onclick = () => togglePlay();
 $('#prev').onclick = () => { if(playing) togglePlay(false); stepLine(-1); };
 $('#next').onclick = () => { if(playing) togglePlay(false); stepLine(1); };
 togglePlay(false);
-addEventListener('wheel', e => { if(locked()){ if(!e.target.closest('#panel')) e.preventDefault(); return; } if(playing) togglePlay(false); if(S.vert && total && Math.abs(e.deltaY)>Math.abs(e.deltaX)){ e.preventDefault(); window.scrollBy(e.deltaY, 0); } }, {passive:false});
+addEventListener('wheel', e => { if(locked()){ if(!e.target.closest('#panel')) e.preventDefault(); return; } if(playing) togglePlay(false); if(S.vert && total && Math.abs(e.deltaY)>Math.abs(e.deltaX)){ e.preventDefault(); window.scrollBy((revOn()?-1:1)*e.deltaY, 0); } }, {passive:false});
 addEventListener('touchmove', () => { if(playing) togglePlay(false); }, {passive:true});
 addEventListener('keydown', e => {
   if(e.target.tagName==='TEXTAREA' || e.target.tagName==='INPUT') return;
