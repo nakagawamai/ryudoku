@@ -1,0 +1,32 @@
+name: 作品一覧を更新
+
+on:
+  schedule:
+    - cron: '0 20 * * 0'   # 毎週月曜 05:00 JST（UTC 日曜 20:00）
+  workflow_dispatch:        # Actions タブから手動実行もできる
+
+permissions:
+  contents: write
+
+jobs:
+  build-index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build-index
+      - name: 変更があればコミット
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- index.json; then
+            echo "変更なし"
+          else
+            git add index.json
+            git commit -m "作品一覧を更新 ($(date -u +%Y-%m-%d))"
+            git push
+          fi
