@@ -1,0 +1,7 @@
+{
+  "name": "ryudoku",
+  "private": true,
+  "type": "module",
+  "scripts": { "build-index": "node build-index.mjs" },
+  "dependencies": { "fflate": "^0.8.2" }
+}

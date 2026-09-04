@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="dusk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>流読 — 青空文庫 Flow Reader</title>
+<style>
+:root{
+  --bg:#1c1f24; --ink:#d9d5cc; --ink-read:#67655f; --ink-hint:#8a877f; --line:#2e3239; --chrome:#23262c;
+  --fs:20px; --lh:2.2;
+  --serif:"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP","Source Han Serif JP",serif;
+  --ui:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+}
+[data-theme="ink"]{ --bg:#0e0e10; --ink:#d2cec6; --ink-hint:#7c7973; --line:#26262a; --chrome:#17171a; }
+[data-theme="day"]{ --bg:#e9e7e0; --ink:#25282d; --ink-hint:#7d7b75; --line:#d3d0c8; --chrome:#f2f0ea; }
+[data-theme="cream"]{ --bg:#f4ecd9; --ink:#3a3128; --ink-hint:#8c8171; --line:#e0d6c1; --chrome:#faf4e6; }
+[data-theme="moss"]{ --bg:#dfe6da; --ink:#26302a; --ink-hint:#6f7d72; --line:#c6d0c0; --chrome:#eaf0e6; }
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+html{overflow-x:hidden}
+html.vert{overflow-x:auto;overflow-y:hidden}
+body{font-family:var(--serif);transition:background .35s,color .35s}
+
+#bar{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;align-items:center;gap:8px;padding:8px 14px;font-size:14px;
+  background:var(--chrome);border-bottom:1px solid var(--line);font-family:var(--ui);font-size:13px;transition:transform .3s,opacity .3s}
+body.reading #bar{transform:translateY(-100%);opacity:0}
+#bar .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-hint)}
+#bar .t b{color:var(--ink);font-weight:500;margin-right:.6em}
+button,label.btn{font:inherit;color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;min-height:38px}
+button svg{width:16px;height:16px;flex:none}
+button:hover,label.btn:hover{border-color:var(--ink-hint)}
+button:focus-visible,label.btn:focus-within,input:focus-visible,textarea:focus-visible{outline:2px solid var(--ink-hint);outline-offset:2px}
+button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
+
+#panel{position:fixed;top:56px;right:12px;z-index:20;width:min(310px,calc(100vw - 24px));padding:14px 16px;background:var(--chrome);border:1px solid var(--line);border-radius:10px;font-family:var(--ui);font-size:13px;display:none}
+#panel.open{display:block}
+#panel .row{display:flex;align-items:center;gap:10px;margin:8px 0}
+#panel .row span{flex:0 0 6em;color:var(--ink-hint)}
+#panel input[type=range]{flex:1;accent-color:var(--ink)}
+#panel .row em{font-style:normal;flex:0 0 4.5em;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
+#panel hr{border:0;border-top:1px solid var(--line);margin:12px 0}
+#panel .keys{color:var(--ink-hint);line-height:1.8}
+#panel kbd{font:inherit;border:1px solid var(--line);border-radius:4px;padding:0 5px}
+
+#paste{position:fixed;inset:0;z-index:30;background:color-mix(in srgb,var(--bg) 80%,transparent);display:none;align-items:center;justify-content:center;padding:20px}
+#paste.open{display:flex}
+#paste .box{width:min(720px,100%);background:var(--chrome);border:1px solid var(--line);border-radius:12px;padding:18px;font-family:var(--ui);font-size:13px}
+#paste textarea{width:100%;height:45vh;margin:10px 0;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:10px;font:14px/1.6 var(--serif);resize:vertical}
+#paste .acts{display:flex;gap:8px;justify-content:flex-end}
+
+.sw{display:flex;gap:10px;flex-wrap:wrap}
+.sw button{flex-direction:column;gap:3px;padding:6px 8px;min-width:56px;border-color:transparent;font-size:12px;color:var(--ink-hint)}
+.sw button i{display:block;width:26px;height:26px;border-radius:50%;border:1px solid rgba(128,128,128,.4)}
+.sw button.on{border-color:var(--ink);color:var(--ink)}
+#ctl{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:18;display:none;gap:10px;align-items:center;font-family:var(--ui);font-size:14px}
+#ctl.on{display:flex}
+#ctl button{background:var(--chrome);box-shadow:0 4px 18px rgba(0,0,0,.18);min-height:48px;padding:10px 16px;border-radius:24px}
+#ctl #play2{min-width:150px;justify-content:center;font-size:15px}
+#ctl #play2.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+#rail{position:fixed;left:0;top:0;bottom:0;width:3px;z-index:15;background:var(--line)}
+#rail i{display:block;width:100%;height:0;background:var(--ink)}
+
+/* ---- text ---- */
+#spacer{width:1px;height:1px}
+#stage{position:fixed;inset:0;overflow:hidden;pointer-events:none}
+#stage.on{pointer-events:auto}
+#col,#measure{position:absolute;left:50%;width:min(38em,calc(100vw - 56px));transform:translateX(-50%);
+  font-size:var(--fs);line-height:var(--lh);letter-spacing:.02em}
+#col{top:0;will-change:transform}
+#measure{top:0;visibility:hidden;pointer-events:none}
+#measure p{margin:0}
+.v{position:absolute;left:0;right:0;margin:0;white-space:nowrap;--p:0%;
+  -webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(var(--p) - 16%),rgba(0,0,0,var(--ghost)) var(--p));
+          mask-image:linear-gradient(90deg,#000 0,#000 calc(var(--p) - 16%),rgba(0,0,0,var(--ghost)) var(--p));
+}
+#hint{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);z-index:16;font-family:var(--ui);font-size:13px;color:var(--ink-hint);
+  display:flex;flex-direction:column;align-items:center;gap:6px;opacity:0;transition:opacity .5s;pointer-events:none}
+#hint.on{opacity:1}
+#hint i{display:block;width:10px;height:10px;border-right:1.5px solid var(--ink-hint);border-bottom:1.5px solid var(--ink-hint);transform:rotate(45deg);animation:bob 1.6s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0) rotate(45deg)}50%{transform:translateY(6px) rotate(45deg)}}
+@media (prefers-reduced-motion:reduce){ #hint i{animation:none} }
+.h{font-size:1.15em}
+.idt1{padding-inline-start:1em}.idt2{padding-inline-start:2em}.idt3{padding-inline-start:3em}
+.vert #col{left:auto;right:0;width:0;top:70px;height:calc(100vh - 170px);transform:none}
+.vert #measure{left:0;width:auto;top:70px;height:calc(100vh - 170px);transform:none;writing-mode:vertical-rl}
+.vert #measure p{height:100%}
+.vert .v{left:auto;top:0;bottom:0;writing-mode:vertical-rl;
+  -webkit-mask-image:linear-gradient(180deg,#000 0,#000 calc(var(--p) - 16%),rgba(0,0,0,var(--ghost)) var(--p));
+          mask-image:linear-gradient(180deg,#000 0,#000 calc(var(--p) - 16%),rgba(0,0,0,var(--ghost)) var(--p))}
+.vert #hint i{transform:rotate(135deg);animation-name:bobx}
+@keyframes bobx{0%,100%{transform:translateX(0) rotate(135deg)}50%{transform:translateX(-6px) rotate(135deg)}}
+.vert #rail{top:auto;left:0;right:0;height:3px;width:auto;display:flex;justify-content:flex-end}
+.vert #rail i{height:100%;width:0}
+ruby{ruby-align:center} rt{font-size:.5em;letter-spacing:0;color:var(--ink-hint)}
+em{font-style:normal} em.sesame{text-emphasis:filled sesame;-webkit-text-emphasis:filled sesame}
+.v.mt{font-size:1.3em}
+.v.ma{color:var(--ink)}
+.v.ms{font-size:.72em;color:var(--ink-hint)}
+#search{position:fixed;inset:0;z-index:30;background:color-mix(in srgb,var(--bg) 80%,transparent);display:none;align-items:flex-start;justify-content:center;padding:20px}
+#search.open{display:flex}
+#search .box{width:min(640px,100%);max-height:calc(100vh - 40px);display:flex;flex-direction:column;background:var(--chrome);border:1px solid var(--line);border-radius:12px;padding:16px;font-family:var(--ui);font-size:14px}
+#search .head{display:flex;gap:8px;align-items:center}
+#q{flex:1;font:inherit;font-size:16px;padding:10px 12px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;min-width:0}
+#results{list-style:none;margin:12px 0 0;padding:0;overflow:auto;flex:1}
+#results li{padding:10px 8px;border-top:1px solid var(--line);cursor:pointer;display:flex;flex-direction:column;gap:2px}
+#results li:hover,#results li:focus{background:var(--bg);outline:none}
+#results .rt{font-family:var(--serif);font-size:16px}
+#results .ra{font-size:12px;color:var(--ink-hint)}
+#results .tag{font-size:11px;border:1px solid var(--line);border-radius:4px;padding:0 5px;margin-left:6px;color:var(--ink-hint)}
+#results .note{padding:14px 8px;color:var(--ink-hint);border:0;cursor:default}
+#empty{position:relative;z-index:5;font-family:var(--ui);font-size:14px;color:var(--ink-hint);line-height:1.9;padding:0 28px;max-width:38em;margin:22vh auto 0}
+#empty b{color:var(--ink);font-weight:500}
+@media (max-width:600px){ #bar .t{display:none} #col,#measure{width:calc(100vw - 40px)} }
+</style>
+</head>
+<body>
+
+<div id="rail"><i></i></div>
+
+<div id="bar">
+  <div class="t"><b id="title">流読</b><span id="author"></span></div>
+  <button id="searchBtn" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>作品をさがす</button>
+  <label class="btn">ファイルを開く<input type="file" id="file" accept=".html,.htm,.xhtml,.txt"></label>
+  <button id="pasteBtn">貼り付け</button>
+  <button id="gear" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>設定</button>
+</div>
+
+<div id="panel">
+  <div class="row"><span>文字の向き</span><div class="sw" id="dirs" style="gap:6px">
+    <button data-v="0" style="flex-direction:row;min-width:0">横書き</button><button data-v="1" style="flex-direction:row;min-width:0">縦書き</button></div></div>
+  <div class="row"><span>文字サイズ</span><input type="range" id="fs" min="14" max="34" step="1"><em id="fsV"></em></div>
+  <div class="row"><span>行間</span><input type="range" id="lh" min="1.6" max="3" step="0.1"><em id="lhV"></em></div>
+  <div class="row"><span>視線の位置</span><input type="range" id="focus" min="0.2" max="0.7" step="0.05"><em id="focusV"></em></div>
+  <div class="row"><span>1行の送り量</span><input type="range" id="step" min="40" max="300" step="10"><em id="stepV"></em></div>
+  <div class="row"><span>自動の速さ</span><input type="range" id="spd" min="0.3" max="4" step="0.1"><em id="spdV"></em></div>
+  <hr>
+  <div class="row"><span>最初に出す行</span><input type="range" id="pre" min="0" max="10" step="1"><em id="preV"></em></div>
+  <div class="row"><span>先の行の透け</span><input type="range" id="ghost" min="0" max="0.4" step="0.02"><em id="ghostV"></em></div>
+  <hr>
+  <div class="row" style="align-items:flex-start"><span style="padding-top:8px">背景の色</span>
+    <div class="sw" id="themes">
+      <button data-t="dusk"><i style="background:#1c1f24"></i>宵</button>
+      <button data-t="ink"><i style="background:#0e0e10"></i>墨</button>
+      <button data-t="day"><i style="background:#e9e7e0"></i>昼</button>
+      <button data-t="cream"><i style="background:#f4ecd9"></i>生成り</button>
+      <button data-t="moss"><i style="background:#dfe6da"></i>若草</button>
+    </div></div>
+  <hr>
+  <div class="keys"><kbd>↓</kbd><kbd>→</kbd> 次の行　<kbd>↑</kbd><kbd>←</kbd> 前の行<br><kbd>Space</kbd> 自動送り　<kbd>H</kbd> バーを隠す</div>
+</div>
+
+<div id="search">
+  <div class="box">
+    <div class="head"><input id="q" type="search" placeholder="作品名・作者名（ひらがなでも）" autocomplete="off"><button id="searchClose">閉じる</button></div>
+    <ul id="results"><li class="note">青空文庫の作品一覧を読み込んでいます…</li></ul>
+  </div>
+</div>
+<div id="paste">
+  <div class="box">
+    青空文庫の XHTML（ページのソース）か、テキスト版（｜漢字《かんじ》 形式）をそのまま貼り付けてください。
+    <textarea id="pasteText" placeholder="ここに貼り付け"></textarea>
+    <div class="acts"><button id="pasteCancel">閉じる</button><button id="pasteOk" class="on">読み始める</button></div>
+  </div>
+</div>
+
+<div id="empty">
+  <b>流読</b> は、文字を目で追うのではなく、1行ずつ文字のほうから流れてくる読書ツールです。<br>
+  スクロール（ホイール1目盛り・↓キー・スワイプ）で、次の1行が左から右へふわっと現れます。<br><br>
+  上の「作品をさがす」から青空文庫の作品を選ぶと、そのまま読めます。<br>
+  手元のファイル（青空文庫のXHTMLやテキスト）を開いたり、貼り付けることもできます。<br><br>
+  <button id="demo">サンプル文章で試す</button>
+</div>
+
+<div id="ctl">
+  <button id="prev" aria-label="前の行"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>前の行</button>
+  <button id="play2"></button>
+  <button id="next" aria-label="次の行">次の行<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+</div>
+<div id="hint">下にスクロールすると、次の行が現れます<i></i></div>
+<div id="spacer"></div>
+<div id="stage"><div id="measure"></div><div id="col"></div></div>
+
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const col = $('#col'), measure = $('#measure'), spacer = $('#spacer'), railBar = $('#rail i'), stage = $('#stage');
+
+/* ================= settings ================= */
+const S = { fs:26, lh:2.1, focus:0.42, step:100, spd:0.5, pre:3, ghost:0.12, theme:'dusk', vert:false };
+const sc = () => S.vert ? scrollX : scrollY;
+const goTo = (v, smooth) => window.scrollTo(S.vert ? {left:v, top:0, behavior:smooth?'smooth':'auto'} : {top:v, left:0, behavior:smooth?'smooth':'auto'});
+const store = { get(k){ try{ return JSON.parse(localStorage.getItem('ryudoku:'+k)); }catch(e){ return null; } },
+                set(k,v){ try{ localStorage.setItem('ryudoku:'+k, JSON.stringify(v)); }catch(e){} } };
+Object.assign(S, store.get('settings') || {}); delete S.dim;
+let relayoutT = 0;
+function applySettings(relayout){
+  document.documentElement.style.setProperty('--fs', S.fs+'px');
+  document.documentElement.style.setProperty('--lh', S.lh);
+  document.documentElement.dataset.theme = S.theme;
+  document.documentElement.classList.toggle('vert', S.vert);
+  document.querySelectorAll('#dirs button').forEach(b => b.classList.toggle('on', (b.dataset.v==='1')===S.vert));
+  $('#hint').firstChild.nodeValue = S.vert ? '左にスクロールすると、次の行が現れます' : '下にスクロールすると、次の行が現れます';
+  document.querySelectorAll('#dirs button').forEach(b => b.onclick = () => { const v=b.dataset.v==='1'; if(v===S.vert) return; const pos=total?sc()/S.step:0; S.vert=v; applySettings(); if(total){ window.scrollTo(0,0); layout(); goTo(pos*S.step); } });
+document.querySelectorAll('#themes button').forEach(b => b.classList.toggle('on', b.dataset.t===S.theme));
+  $('#fs').value=S.fs; $('#fsV').textContent=S.fs+'px';
+  $('#lh').value=S.lh; $('#lhV').textContent=S.lh.toFixed(1);
+  $('#focus').value=S.focus; $('#focusV').textContent=Math.round(S.focus*100)+'%';
+  $('#step').value=S.step; $('#stepV').textContent=S.step+'px';
+  $('#spd').value=S.spd; $('#spdV').textContent=S.spd.toFixed(1)+'行/秒';
+  $('#pre').value=S.pre; $('#preV').textContent=S.pre+'行';
+  $('#ghost').value=S.ghost; $('#ghostV').textContent=Math.round(S.ghost*100)+'%';
+  document.documentElement.style.setProperty('--ghost', S.ghost);
+  store.set('settings', S);
+  if(relayout){ clearTimeout(relayoutT); relayoutT=setTimeout(layout,120); }
+  else { updateSpacer(); forceAll(); requestUpdate(); }
+}
+$('#fs').oninput = e => { S.fs=+e.target.value; applySettings(true); };
+$('#lh').oninput = e => { S.lh=+e.target.value; applySettings(true); };
+$('#focus').oninput = e => { S.focus=+e.target.value; applySettings(); };
+$('#step').oninput = e => { S.step=+e.target.value; applySettings(); };
+$('#spd').oninput = e => { S.spd=+e.target.value; applySettings(); };
+$('#pre').oninput = e => { S.pre=+e.target.value; applySettings(); };
+$('#ghost').oninput = e => { S.ghost=+e.target.value; applySettings(); };
+document.querySelectorAll('#dirs button').forEach(b => b.onclick = () => { const v=b.dataset.v==='1'; if(v===S.vert) return; const pos=total?sc()/S.step:0; S.vert=v; applySettings(); if(total){ window.scrollTo(0,0); layout(); goTo(pos*S.step); } });
+document.querySelectorAll('#themes button').forEach(b => b.onclick = () => { S.theme=b.dataset.t; applySettings(); });
+$('#gear').onclick = () => { const o=$('#panel').classList.toggle('open'); $('#gear').setAttribute('aria-expanded',o); $('#gear').classList.toggle('on',o); };
+
+/* ================= parsing (paragraphs) ================= */
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const KEEP = new Set(['RUBY','RB','RT','EM','STRONG']);
+function serialize(node){
+  if(node.nodeType===3) return esc(node.nodeValue);
+  if(node.nodeType!==1) return '';
+  const t = node.tagName;
+  if(t==='BR') return '\n';
+  if(t==='RP'||t==='SCRIPT'||t==='STYLE') return '';
+  if(node.classList.contains('notes')) return '';
+  if(t==='IMG') return esc(node.getAttribute('alt')||'');
+  let inner=''; for(const c of node.childNodes) inner += serialize(c);
+  if(KEEP.has(t)){
+    const cls = t==='EM' && /sesame/.test(node.className) ? ' class="sesame"' : '';
+    const tag = t.toLowerCase();
+    return `<${tag}${cls}>${inner}</${tag}>`;
+  }
+  if(/^H[1-6]$/.test(t)) return '\n\u0001H\u0001'+inner+'\n';
+  if(/^(DIV|P|BLOCKQUOTE)$/.test(t)){
+    const m = node.className.match(/jisage_(\d+)/);
+    const pre = m ? `\u0001I${Math.min(3,+m[1])}\u0001` : '';
+    return '\n'+inner.split('\n').map(l => l ? pre+l : l).join('\n')+'\n';
+  }
+  return inner;
+}
+function parseXHTML(html){
+  const doc = new DOMParser().parseFromString(html,'text/html');
+  const main = doc.querySelector('.main_text') || doc.body;
+  const title = doc.querySelector('.title')?.textContent.trim() || '';
+  const author = doc.querySelector('.author')?.textContent.trim() || '';
+  const translator = doc.querySelector('.translator')?.textContent.trim().replace(/訳$/,'').trim() || '';
+  const bib = doc.querySelector('.bibliographical_information')?.textContent || '';
+  const teihon = (bib.match(/底本[：:]\s*(.+)/)||[])[1]?.trim() || '';
+  let s=''; for(const c of main.childNodes) s += serialize(c);
+  return { title, author, translator, teihon, paras: s.split('\n') };
+}
+function parseTxt(txt){
+  let lines = txt.replace(/\r\n?/g,'\n').split('\n');
+  let title='', author='';
+  const seps = lines.map((l,i)=>/^-{10,}$/.test(l.trim())?i:-1).filter(i=>i>=0);
+  if(seps.length>=2){ title=lines[0]?.trim()||''; author=lines[1]?.trim()||''; lines=lines.slice(seps[1]+1); }
+  let translator='', teihon='';
+  const foot = lines.findIndex(l=>/^底本[：:]/.test(l.trim()));
+  if(foot>0){ teihon = lines[foot].trim().replace(/^底本[：:]/,''); lines = lines.slice(0,foot); }
+  if(seps.length>=2 && seps[0]>=3){ const third=(txt.replace(/\r\n?/g,'\n').split('\n')[2]||'').trim(); if(third && /訳/.test(third)) translator=third.replace(/訳$/,'').trim(); else if(third) translator=third; }
+  while(lines.length && !lines[0].trim()) lines.shift();
+  return { title, author, translator, teihon, paras: lines.map(l => {
+    let s = esc(l);
+    const idt = s.match(/［＃(?:ここから)?(\d+)字下げ］/);
+    s = s.replace(/［＃[^］]*］/g,'');
+    s = s.replace(/｜([^《｜]+?)《([^》]+?)》/g,'<ruby>$1<rt>$2</rt></ruby>');
+    s = s.replace(/([\u4e00-\u9fff\u3005-\u3007\u3400-\u4dbf々〆ヵヶ]+)《([^》]+?)》/g,'<ruby>$1<rt>$2</rt></ruby>');
+    s = s.replace(/《[^》]*》/g,'');
+    if(idt) s = `\u0001I${Math.min(3,+idt[1])}\u0001`+s;
+    return s;
+  })};
+}
+
+/* ================= wrap paragraphs into visual lines ================= */
+// 各段落を実際の幅で描画し、折り返し位置を Range で測って「1表示行 = 1要素」に分解する
+let paras = [], vlines = []; // vlines: {html, cls}
+function wrapParagraph(html, cls){
+  const p = document.createElement('p'); p.className = cls; p.innerHTML = html;
+  measure.innerHTML=''; measure.appendChild(p);
+  const rng = document.createRange();
+  const out=[]; let cur='', curB=null;
+  const push=(b, s)=>{ if(curB===null) curB=b; else if(Math.abs(b-curB)>3){ out.push(cur); cur=''; curB=b; } cur+=s; };
+  const key = r => S.vert ? r.left : r.bottom;
+  const bottomAt=(t,i)=>{ rng.setStart(t,i); rng.setEnd(t,Math.min(t.length,i+1)); return key(rng.getBoundingClientRect()); };
+  const wrapTag=(node,s)=>{ const t=node.tagName.toLowerCase(); const c=node.className?` class="${node.className}"`:''; return `<${t}${c}>${s}</${t}>`; };
+  function walk(node, wrap){
+    for(const ch of node.childNodes){
+      if(ch.nodeType===3){
+        const t=ch, n=t.length; let i=0;
+        while(i<n){
+          const b = bottomAt(t,i);
+          let lo=i, hi=n-1;
+          while(lo<hi){ const mid=(lo+hi+1)>>1; if(Math.abs(bottomAt(t,mid)-b)<=3) lo=mid; else hi=mid-1; }
+          push(b, wrap(esc(t.nodeValue.slice(i,lo+1))));
+          i=lo+1;
+        }
+      } else if(ch.nodeType===1){
+        if(ch.tagName==='RUBY'){
+          const tn = [...ch.childNodes].find(x=>x.nodeType===3&&x.length) || ch.querySelector('rb')?.firstChild;
+          const b = tn ? bottomAt(tn,0) : key(ch.getBoundingClientRect());
+          push(b, wrap(ch.outerHTML));
+        } else walk(ch, s=>wrap(wrapTag(ch,s)));
+      }
+    }
+  }
+  walk(p, s=>s);
+  if(cur||!out.length) out.push(cur);
+  return out.map(h=>({html:h, cls}));
+}
+function layout(){
+  if(!paras.length) return;
+  const ratio = total ? sc()/(Math.max(1,total-PRE())*S.step) : 0;
+  vlines=[];
+  for(const raw of paras){
+    let s=raw, cls='';
+    if(s.startsWith('\u0001H\u0001')){ cls+=' h'; s=s.slice(3); }
+    const mm=s.match(/^\u0001M(\w+)\u0001/); if(mm){ cls+=' '+mm[1]; s=s.slice(mm[0].length); }
+    const m=s.match(/^\u0001I(\d)\u0001/); if(m){ cls+=' idt'+m[1]; s=s.slice(m[0].length); }
+    if(!s.trim()) vlines.push({html:'',cls:''});
+    else vlines.push(...wrapParagraph(s, cls.trim()));
+  }
+  measure.innerHTML='';
+  total = vlines.length;
+  metaCount = 0; while(metaCount<vlines.length && /\bm[tas]\b/.test(vlines[metaCount].cls)) metaCount++;
+  pool.clear(); col.innerHTML='';
+  updateSpacer();
+  goTo(ratio*Math.max(0,total-PRE())*S.step);
+  lastIdx=-1; forceAll(); requestUpdate();
+}
+
+/* ================= virtual rendering + reveal ================= */
+let total=0, lastIdx=-1, currentKey=null, metaCount=0;
+const pool = new Map(); // index -> element
+const LH = () => S.fs*S.lh;
+const PRE = () => Math.min(S.pre+metaCount+1, Math.max(0,total-1));
+function updateSpacer(){ const len=Math.max(0,total-PRE())*S.step; if(S.vert){ spacer.style.height='1px'; spacer.style.width=(len+innerWidth)+'px'; } else { spacer.style.width='1px'; spacer.style.height=(len+innerHeight)+'px'; } }
+function forceAll(){ for(const el of pool.values()) el._p=-1; }
+function elFor(i){
+  let el = pool.get(i);
+  if(!el){
+    const v = vlines[i];
+    el = document.createElement('div'); el.className='v'+(v.cls?' '+v.cls:'');
+    el.innerHTML = v.html; el._p=-1;
+    col.appendChild(el); pool.set(i,el);
+  }
+  return el;
+}
+function setP(el,p){ if(el._p===p) return; el._p=p; el.style.setProperty('--p',(p*116).toFixed(1)+'%'); }
+
+let raf=0;
+function requestUpdate(){ if(!raf) raf=requestAnimationFrame(update); }
+function update(){
+  raf=0; if(!total) return;
+  const lh = LH(), vh = innerHeight, vw = innerWidth;
+  const pos = Math.max(0, Math.min(total-1e-6, sc()/S.step + PRE()));
+  $('#hint').classList.toggle('on', sc() < S.step*0.5 && pos < total-1);
+  const idx = Math.floor(pos), frac = pos-idx;
+  if(S.vert) col.style.transform = `translateX(${(-vw*S.focus + pos*lh).toFixed(2)}px)`;
+  else col.style.transform = `translate(-50%, ${(vh*S.focus - pos*lh).toFixed(2)}px)`;
+  const W = Math.ceil((S.vert?vw:vh)/lh)+4;
+  const from = Math.max(0, idx-W), to = Math.min(total-1, idx+W);
+  for(const [i,el] of pool) if(i<from||i>to){ el.remove(); pool.delete(i); }
+  for(let i=from;i<=to;i++){
+    const el = elFor(i);
+    if(S.vert){ el.style.right=(i*lh)+'px'; el.style.width=lh+'px'; } else { el.style.top=(i*lh)+'px'; el.style.height=lh+'px'; }
+    setP(el, i<idx ? 1 : i===idx ? frac : 0);
+  }
+  if(S.vert){ railBar.style.width=(pos/total*100)+'%'; railBar.style.height='100%'; } else { railBar.style.height=(pos/total*100)+'%'; railBar.style.width='100%'; }
+  if(currentKey) saveSoon(pos);
+}
+let saveT=0; function saveSoon(pos){ clearTimeout(saveT); saveT=setTimeout(()=>store.set(currentKey, pos),400); }
+addEventListener('scroll', requestUpdate, {passive:true});
+addEventListener('resize', ()=>{ clearTimeout(relayoutT); relayoutT=setTimeout(layout,150); });
+
+function stepLine(d){ goTo((Math.round(sc()/S.step)+d)*S.step, true); }
+
+/* ================= auto ================= */
+let playing=false, last=0;
+function tick(t){
+  if(!playing) return;
+  const dt = last ? (t-last)/1000 : 0; last=t;
+  if(S.vert) window.scrollBy(S.spd*S.step*dt, 0); else window.scrollBy(0, S.spd*S.step*dt);
+  if(sc()/S.step + PRE() >= total-1) togglePlay(false);
+  requestAnimationFrame(tick);
+}
+function togglePlay(on){
+  playing = on ?? !playing; last=0;
+  $('#play2').classList.toggle('on', playing);
+  $('#play2').innerHTML = playing
+    ? '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>止める'
+    : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>自動で読む';
+  if(playing) requestAnimationFrame(tick);
+}
+$('#play2').onclick = () => togglePlay();
+$('#prev').onclick = () => { if(playing) togglePlay(false); stepLine(-1); };
+$('#next').onclick = () => { if(playing) togglePlay(false); stepLine(1); };
+togglePlay(false);
+addEventListener('wheel', e => { if(playing) togglePlay(false); if(S.vert && total && Math.abs(e.deltaY)>Math.abs(e.deltaX)){ e.preventDefault(); window.scrollBy(e.deltaY, 0); } }, {passive:false});
+addEventListener('touchstart', () => { if(playing) togglePlay(false); }, {passive:true});
+addEventListener('keydown', e => {
+  if(e.target.tagName==='TEXTAREA' || e.target.tagName==='INPUT') return;
+  if(e.code==='Space'){ e.preventDefault(); togglePlay(); }
+  else if(e.key==='ArrowDown'||e.key===(S.vert?'ArrowLeft':'ArrowRight')){ e.preventDefault(); stepLine(1); }
+  else if(e.key==='ArrowUp'||e.key===(S.vert?'ArrowRight':'ArrowLeft')){ e.preventDefault(); stepLine(-1); }
+  else if(e.key==='h'||e.key==='H'){ document.body.classList.toggle('reading'); }
+  else if(e.key==='Escape'){ $('#panel').classList.remove('open'); $('#paste').classList.remove('open'); $('#search').classList.remove('open'); }
+});
+
+/* ================= load ================= */
+function load(text, extra){
+  const doc = /<html[\s>]/i.test(text) ? parseXHTML(text) : parseTxt(text);
+  if(extra){ for(const k of ['title','author','translator','teihon','subtitle']) if(extra[k] && !doc[k]) doc[k]=extra[k]; }
+  $('#title').textContent = doc.title || '流読';
+  $('#author').textContent = doc.author;
+  document.title = (doc.title? doc.title+' — ':'') + '流読';
+  const meta=[];
+  if(doc.title) meta.push('\u0001Mmt\u0001'+esc(doc.title)+(doc.subtitle?'　'+esc(doc.subtitle):''));
+  if(doc.author) meta.push('\u0001Mma\u0001'+esc(doc.author));
+  if(doc.translator) meta.push('\u0001Mma\u0001'+esc(doc.translator)+' 訳');
+  if(doc.teihon) meta.push('\u0001Mms\u0001底本：'+esc(doc.teihon));
+  paras = meta.length ? [...meta, '', ...doc.paras] : doc.paras; total=0;
+  $('#empty').style.display='none'; stage.classList.add('on'); $('#ctl').classList.add('on'); $('#panel').classList.remove('open'); $('#gear').classList.remove('on');
+  layout();
+  currentKey = 'pos:'+(doc.title||'untitled')+':'+paras.length;
+  const pos = store.get(currentKey);
+  if(pos) goTo(Math.max(0,pos-PRE())*S.step);
+}
+async function readFile(file){
+  const buf = await file.arrayBuffer();
+  let text;
+  try{ text = new TextDecoder('utf-8',{fatal:true}).decode(buf); }
+  catch(e){ text = new TextDecoder('shift_jis').decode(buf); }
+  load(text);
+}
+$('#file').onchange = e => { const f=e.target.files[0]; if(f) readFile(f); e.target.value=''; };
+addEventListener('dragover', e => e.preventDefault());
+addEventListener('drop', e => { e.preventDefault(); const f=e.dataTransfer.files[0]; if(f) readFile(f); });
+$('#pasteBtn').onclick = () => { $('#paste').classList.add('open'); $('#pasteText').focus(); };
+$('#pasteCancel').onclick = () => $('#paste').classList.remove('open');
+$('#pasteOk').onclick = () => { const t=$('#pasteText').value; if(t.trim()){ load(t); $('#paste').classList.remove('open'); } };
+
+/* ================= 青空文庫（GitHubミラー）から読む ================= */
+const MIRROR = 'https://raw.githubusercontent.com/aozorahack/aozorabunko_text/master/';
+let INDEX = null, indexPromise = null;
+function loadIndex(){
+  return indexPromise ||= fetch('index.json').then(r => { if(!r.ok) throw new Error('index.json が見つかりません'); return r.json(); })
+    .then(j => { INDEX = j.works.map(w => ({...w, key:(w.t+' '+w.ty+' '+w.a+' '+w.ar+' '+w.tr).toLowerCase()})); return INDEX; });
+}
+const kata2hira = s => s.replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0)-0x60));
+function searchWorks(q){
+  q = kata2hira(q.trim().toLowerCase()); if(!q) return [];
+  const terms = q.split(/[\s　]+/).filter(Boolean);
+  return INDEX.filter(w => { const k=kata2hira(w.key); return terms.every(t => k.includes(t)); });
+}
+function renderResults(list, q){
+  const ul = $('#results'); ul.innerHTML='';
+  if(!q){ ul.innerHTML = `<li class="note">${INDEX?INDEX.length.toLocaleString()+' 作品':''}　作品名か作者名を入れてください（例：夏目漱石、はしれめろす）</li>`; return; }
+  if(!list.length){ ul.innerHTML='<li class="note">見つかりませんでした。別の言葉で試してください</li>'; return; }
+  for(const w of list.slice(0,80)){
+    const li=document.createElement('li'); li.tabIndex=0;
+    li.innerHTML = `<span class="rt">${esc(w.t)}${w.st?'<span style="font-size:.8em;color:var(--ink-hint)">　'+esc(w.st)+'</span>':''}${w.k?'<span class="tag">'+esc(w.k)+'</span>':''}</span><span class="ra">${esc(w.a)}${w.tr?'　'+esc(w.tr)+' 訳':''}</span>`;
+    li.onclick = () => openWork(w); li.onkeydown = e => { if(e.key==='Enter') openWork(w); };
+    ul.appendChild(li);
+  }
+  if(list.length>80) ul.insertAdjacentHTML('beforeend', `<li class="note">他 ${list.length-80} 件。言葉を足すと絞り込めます</li>`);
+}
+async function openWork(w){
+  $('#search').classList.remove('open');
+  $('#title').textContent='読み込み中…'; $('#author').textContent='';
+  try{
+    const r = await fetch(MIRROR + w.p); if(!r.ok) throw new Error('本文を取得できませんでした（'+r.status+'）');
+    const buf = await r.arrayBuffer();
+    let text; try{ text = new TextDecoder('utf-8',{fatal:true}).decode(buf); }catch(e){ text = new TextDecoder('shift_jis').decode(buf); }
+    load(text, {title:w.t, subtitle:w.st, author:w.a, translator:w.tr, teihon:w.tb});
+    history.replaceState(null,'','?id='+w.id);
+  }catch(e){ $('#title').textContent='流読'; alert(e.message+'\n通信状況を確認して、もう一度お試しください。'); }
+}
+$('#searchBtn').onclick = async () => {
+  $('#search').classList.add('open'); $('#q').focus();
+  try{ await loadIndex(); renderResults(searchWorks($('#q').value), $('#q').value.trim()); }
+  catch(e){ $('#results').innerHTML='<li class="note">作品一覧を読み込めませんでした。index.json を配置してください</li>'; }
+};
+$('#searchClose').onclick = () => $('#search').classList.remove('open');
+$('#search').addEventListener('click', e => { if(e.target.id==='search') $('#search').classList.remove('open'); });
+let qT=0; $('#q').oninput = () => { clearTimeout(qT); qT=setTimeout(()=>{ if(INDEX) renderResults(searchWorks($('#q').value), $('#q').value.trim()); },120); };
+(async () => {
+  const id = new URLSearchParams(location.search).get('id');
+  if(!id) return;
+  try{ await loadIndex(); const w = INDEX.find(x => x.id===+id); if(w) openWork(w); }catch(e){}
+})();
+
+/* ================= sample (original text) ================= */
+const SAMPLE = `夕暮れの駅
+流読
+
+-------------------------------------------------------
+【テキスト中に現れる記号について】
+《》：ルビ
+｜：ルビの付く文字列の始まりを特定する記号
+-------------------------------------------------------
+
+［＃「一」は中見出し］
+一
+
+　誰も降りない駅がある。
+　線路は町の端で｜途切《とぎ》れ、その先は｜薄《うす》い夕闇に｜溶《と》けている。私はそこで、毎日ひとつだけ、｜忘《わす》れものを｜拾《ひろ》う。
+　今日の忘れものは、｜傘《かさ》だった。骨が一本だけ｜折《お》れていて、持ち手には小さな｜鈴《すず》が結んである。振ると音はしない。｜鈴《すず》の中に、｜誰《だれ》かの声だけが残っているような気がした。
+
+　改札の向こうで、｜灯《あか》りが一つずつともっていく。
+　私はベンチに座って、鈴を鳴らさないように、そっと｜膝《ひざ》の上に置いた。
+　次の電車が来るまで、あと｜少《すこ》しある。
+　風が｜線路《せんろ》を｜撫《な》でて、遠くで｜踏切《ふみきり》が鳴った。誰かが、この駅で降りるのかもしれない。
+　それとも、この傘を｜取《と》りに来るのかもしれない。
+
+［＃「二」は中見出し］
+二
+
+　電車は、来なかった。
+　代わりに、白い犬が一匹、ホームの端から歩いてきた。首輪はなく、足音もない。犬は私の前で立ち止まり、膝の上の傘をじっと見た。
+「これは、あなたの？」
+　犬は答えなかった。ただ、鈴のあたりを一度だけ鼻で突いて、｜踵《きびす》を返した。
+　鈴が、はじめて鳴った。
+　小さく、遠く、まるで｜昨日《きのう》の音のように。
+
+底本：オリジナル`;
+$('#demo').onclick = () => load(SAMPLE);
+
+applySettings();
+})();
+</script>
+</body>
+</html>
